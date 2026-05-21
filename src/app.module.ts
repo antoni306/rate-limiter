@@ -4,6 +4,7 @@ import {TypeOrmModule} from "@nestjs/typeorm";
 import {RedisModule} from "@nestjs-modules/ioredis";
 import { ApiKeyModule } from './api-key/api-key.module';
 import { RateLimitModule } from './rate-limit/rate-limit.module';
+import { TokenBucketModule } from './token-bucket/token-bucket.module';
 @Module({
   imports: [
     ConfigModule.forRoot({isGlobal:true}),
@@ -30,6 +31,7 @@ import { RateLimitModule } from './rate-limit/rate-limit.module';
       }),
     },),
     RateLimitModule,
+    TokenBucketModule,
   ],
   controllers: [],
   providers: [],
