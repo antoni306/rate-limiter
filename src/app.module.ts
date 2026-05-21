@@ -5,6 +5,7 @@ import {RedisModule} from "@nestjs-modules/ioredis";
 import { ApiKeyModule } from './api-key/api-key.module';
 import { RateLimitModule } from './rate-limit/rate-limit.module';
 import { TokenBucketModule } from './token-bucket/token-bucket.module';
+import { SlidingWindowCounterModule } from './sliding-window-counter/sliding-window-counter.module';
 @Module({
   imports: [
     ConfigModule.forRoot({isGlobal:true}),
@@ -32,6 +33,7 @@ import { TokenBucketModule } from './token-bucket/token-bucket.module';
     },),
     RateLimitModule,
     TokenBucketModule,
+    SlidingWindowCounterModule,
   ],
   controllers: [],
   providers: [],

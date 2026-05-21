@@ -4,10 +4,12 @@ import { FixedWindowModule } from 'src/fixed-window/fixed-window.module';
 import { ApiKeyModule } from 'src/api-key/api-key.module';
 import { SlidingLogModule } from 'src/sliding-log/sliding-log.module';
 import { TokenBucketModule } from 'src/token-bucket/token-bucket.module';
+import { SlidingWindowCounterModule } from 'src/sliding-window-counter/sliding-window-counter.module';
 
 @Module({
-    imports:[FixedWindowModule,ApiKeyModule,SlidingLogModule,TokenBucketModule],
+    imports:[FixedWindowModule,ApiKeyModule,SlidingLogModule,TokenBucketModule,SlidingWindowCounterModule],
     controllers:[RateLimitController],
     exports:[]
 })
+
 export class RateLimitModule {}
