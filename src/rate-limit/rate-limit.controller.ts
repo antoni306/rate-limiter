@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Post, Req, UseGuards, UseInterceptors } from '@nestjs/common';
 import { ApiKeyGuard } from 'src/api-key/api-key.guard';
 import { ApiKey } from 'src/entities/ApiKey.entity';
 import { FixedWindowService } from 'src/fixed-window/fixed-window.service';
@@ -6,8 +6,12 @@ import { SlidingLogService } from 'src/sliding-log/sliding-log.service';
 import { SlidingWindowCounterService } from 'src/sliding-window-counter/sliding-window-counter.service';
 import { TokenBucketService } from 'src/token-bucket/token-bucket.service';
 import { CheckRateLimitDto } from 'src/types/dtoTypes';
+import { RateLimitInterceptor } from './rate-limit.interceptor';
+import { ApiSecurity } from '@nestjs/swagger';
 
 @UseGuards(ApiKeyGuard)
+@ApiSecurity('api-key')
+@UseInterceptors(RateLimitInterceptor)
 @Controller('rate-limit')
 export class RateLimitController {
     constructor(private fixedWindowService:FixedWindowService,
