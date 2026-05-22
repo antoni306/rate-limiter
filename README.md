@@ -1,98 +1,123 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Rate Limiter as a Service
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A distributed rate limiting API built with NestJS and Redis, implementing four different 
+rate limiting strategies. Designed for applications with high network traffic that need 
+fine-grained control over request rates.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## What problem does it solve?
 
-## Description
+Without rate limiting, a single client can overwhelm your API with requests, causing 
+degraded performance for all users. This project provides a ready-to-use rate limiting 
+service that can be plugged into any application via a simple HTTP API.
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Architecture
 
-## Project setup
+## Architecture
 
-```bash
-$ npm install
+```mermaid
+graph LR
+    Client -->|"X-API-Key header"| Guard["ApiKeyGuard"]
+    Guard -->|"valid"| Controller["RateLimitController"]
+    Guard -->|"invalid"| E1["401 Unauthorized"]
+    Controller --> FW["FixedWindowService"]
+    Controller --> SL["SlidingLogService"]
+    Controller --> TB["TokenBucketService"]
+    Controller --> SWC["SlidingWindowCounterService"]
+    FW --> Redis[("Redis")]
+    SL --> Redis
+    TB --> Redis
+    SWC --> Redis
+    Controller --> PG[("PostgreSQL")]
+    FW -->|"exceeded"| Filter["RateLimitFilter"]
+    SL -->|"exceeded"| Filter
+    TB -->|"exceeded"| Filter
+    SWC -->|"exceeded"| Filter
+    Filter --> E2["429 Too Many Requests"]
+```
 ```
 
-## Compile and run the project
+## Quick Start
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+git clone https://github.com/antoni306/rate-limiter.git
+cd rate-limiter
+cp .env.example .env
+docker-compose up --build
 ```
 
-## Run tests
-
-```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+### .env.example
 ```
-
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+PORT=3000
+NODE_ENV=development
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=postgres
+DB_NAME=ratelimiter
+REDIS_HOST=localhost
+REDIS_PORT=6379
 ```
+API docs available at `http://localhost:3000/docs`
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+## Strategies
 
-## Resources
+### Fixed Window
+For each time frame you have a fixed number of available requests. After you exceed the limit, 
+you have to wait for the next window. Best for things like login endpoints — without it someone 
+could keep trying to brute force an account.
+**Best for:** login, password reset, simple API endpoints
+**Cons:** allows bursts at window boundaries — a client can exhaust the limit at the end of one 
+window and immediately do the same at the start of the next.
 
-Check out a few resources that may come in handy when working with NestJS:
+### Sliding Log
+Stores a timestamp for every request. Checks how many requests happened in the last N seconds — 
+no fixed windows, so no boundary bursts.
+**Best for:** strict per-user rate limiting where accuracy matters
+**Cons:** with high traffic the log can get large — memory usage grows with request count.
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+### Sliding Window Counter
+Similar to sliding log but stores only two counters — current and previous window. Calculates 
+a weighted estimate of requests in the last N seconds. Much more memory efficient than sliding log.
+**Best for:** high traffic APIs where memory matters but you still want better accuracy than fixed window
+**Cons:** it's an approximation — assumes requests in the previous window were evenly distributed, 
+which may not always be true.
 
-## Support
+### Token Bucket
+Tokens are added to a bucket at a fixed rate up to a maximum capacity. Each request consumes one token. 
+If the bucket is empty, the request is rejected.
+**Best for:** APIs that need to allow short bursts — tokens accumulate when traffic is low, 
+so a client can spend them all at once when needed.
+**Cons:** harder to reason about than fixed window — clients need to track token count to predict behavior.
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
 
-## Stay in touch
+## Benchmarks
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+Tested with [autocannon](https://github.com/mcollina/autocannon): 10 connections, 10 seconds, limit=10000, windowSeconds=60.
 
-## License
+| Strategy | p50 | p95 | p99 | Throughput |
+|---|---|---|---|---|
+| fixed-window | 0ms | 2ms | 2ms | 11049 req/s |
+| sliding-log | 8ms | 16ms | 21ms | 1040 req/s |
+| token-bucket | 8ms | 15ms | 19ms | 1159 req/s |
+| sliding-window-counter | 9ms | 17ms | 19ms | 993 req/s |
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+Fixed window is ~10x faster than other strategies because it only performs two Redis operations 
+(`INCR` + `EXPIRE`). Sliding log is the most expensive — it requires four operations per request 
+(`ZADD`, `ZREMRANGEBYSCORE`, `ZCARD`, `ZRANGE`). Sliding window counter and token bucket fall 
+in between, offering a good balance between accuracy and performance.
+
+
+## Design Decisions
+
+### Why Redis?
+Redis is an in-memory database which makes it extremely fast for read/write operations. 
+Since rate limiting happens on every single request, latency here directly affects 
+the end user — a slow rate limiter defeats its own purpose. Redis also provides 
+atomic operations like INCR which are essential for correctness under concurrent load.
+
+
+### Why Sliding Window Counter is a good compromise?
+It stores only two integer counters per client instead of a full request log. 
+Memory usage stays constant regardless of traffic volume. Accuracy is better than 
+fixed window because it accounts for the previous window's weight, while being 
+significantly cheaper than sliding log in both memory and Redis operations.
