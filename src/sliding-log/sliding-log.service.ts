@@ -1,6 +1,7 @@
 import { InjectRedis } from '@nestjs-modules/ioredis';
 import { Injectable } from '@nestjs/common';
 import Redis from 'ioredis';
+import { RateLimitExceededException } from 'src/rate-limit/rate-limit-exceeded.exception';
 
 @Injectable()
 export class SlidingLogService {
@@ -14,9 +15,12 @@ export class SlidingLogService {
         const count = await this.redis.zcard(redisKey);
         const oldest = await this.redis.zrange(redisKey,0,0,'WITHSCORES');
         const oldestMs= oldest.length ? parseInt(oldest[1]):now;
+        if(count>limit){
+            throw new RateLimitExceededException(new Date(oldestMs+windowSeconds*1000),0);
+        }
         return {
-            allowed:count<=limit,
-            remaining:Math.max(0,limit-count),
+            allowed:true,
+            remaining:limit-count,
             resetAt:new Date(oldestMs+windowSeconds*1000)
         }
     }

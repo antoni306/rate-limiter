@@ -2,12 +2,13 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { RateLimitFilter } from './rate-limit/rate-limit.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   app.useGlobalPipes(new ValidationPipe({whitelist:true}));
-
+  app.useGlobalFilters(new RateLimitFilter());
   const config= new DocumentBuilder()
       .setTitle("Rate limiter as a service")
       .setDescription("Distributed rate limiting API with multiple strategies")

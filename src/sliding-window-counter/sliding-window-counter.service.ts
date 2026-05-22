@@ -1,6 +1,7 @@
 import { InjectRedis } from '@nestjs-modules/ioredis';
 import {  Injectable } from '@nestjs/common';
 import Redis from 'ioredis';
+import { RateLimitExceededException } from 'src/rate-limit/rate-limit-exceeded.exception';
 
 @Injectable()
 export class SlidingWindowCounterService {
@@ -20,11 +21,13 @@ export class SlidingWindowCounterService {
         
         const estimated = parsedPrev*weight+ parsedCurr;
 
-        if(estimated<limit){
+        if(estimated<=limit){
             await this.redis.incr(`rl:sliding-window-counter:${apiKey}:${identifier}:${window}`);
             await this.redis.expire(`rl:sliding-window-counter:${apiKey}:${identifier}:${window}`,windowSeconds*2);
+        }else{
+            throw new RateLimitExceededException(new Date((window+1)*1000*windowSeconds),0)
         }
-        return {allowed:estimated<limit, remaining: Math.max(0,Math.floor(limit-estimated)), resetAt:new Date((window+1)*1000*windowSeconds)}
+        return {allowed:true, remaining: limit-estimated, resetAt:new Date((window+1)*1000*windowSeconds)}
     }
        
 }
