@@ -9,7 +9,6 @@ import { SlidingWindowCounterModule } from './sliding-window-counter/sliding-win
 @Module({
   imports: [
     ConfigModule.forRoot({isGlobal:true}),
-
     TypeOrmModule.forRootAsync({
       inject:[ConfigService],
       useFactory:(configService:ConfigService)=>({
@@ -36,6 +35,5 @@ import { SlidingWindowCounterModule } from './sliding-window-counter/sliding-win
     SlidingWindowCounterModule,
   ],
   controllers: [],
-  providers: [],
 })
 export class AppModule {}
